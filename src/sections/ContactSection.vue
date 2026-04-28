@@ -174,7 +174,7 @@ function handleSubmit(event) {
 
 <style scoped>
 .contact {
-  background-color: var(--color-bg);
+  background-color: color-mix(in srgb, var(--color-bg) 88%, transparent);
   min-height:       60vh;
 }
 

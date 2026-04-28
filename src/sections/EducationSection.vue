@@ -63,7 +63,7 @@ useReveal(gridRef)
 </template>
 
 <style scoped>
-.education { background-color: var(--color-surface); }
+.education { background-color: color-mix(in srgb, var(--color-surface) 88%, transparent); }
 
 /* ── Grille ─────────────────────────────────────────────── */
 .education__grid {

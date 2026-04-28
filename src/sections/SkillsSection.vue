@@ -67,7 +67,7 @@ useReveal(headerRef)
 </template>
 
 <style scoped>
-.skills { background-color: var(--color-bg); }
+.skills { background-color: color-mix(in srgb, var(--color-bg) 88%, transparent); }
 
 /* ── Grille de catégories ──────────────────────────────── */
 .skills__grid {

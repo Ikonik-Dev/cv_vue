@@ -103,7 +103,7 @@ useReveal(gridRef)
 </template>
 
 <style scoped>
-.about { background-color: var(--color-surface); }
+.about { background-color: color-mix(in srgb, var(--color-surface) 88%, transparent); }
 
 /* ── Grille principale ─────────────────────────────────── */
 .about__grid {

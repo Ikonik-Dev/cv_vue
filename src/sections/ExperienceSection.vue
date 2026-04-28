@@ -79,7 +79,7 @@ useReveal(headerRef)
 </template>
 
 <style scoped>
-.experience { background-color: var(--color-surface); }
+.experience { background-color: color-mix(in srgb, var(--color-surface) 88%, transparent); }
 
 /* ── Timeline container ────────────────────────────────── */
 .experience__timeline {

@@ -15,6 +15,7 @@
 import { ref }          from 'vue'
 import NavBar           from '@/components/NavBar.vue'
 import ScrollProgress   from '@/components/ScrollProgress.vue'
+import PageBackground   from '@/components/PageBackground.vue'
 import { navLinks }     from '@/data/cv.js'
 
 /**
@@ -28,6 +29,9 @@ const scrollPct = ref(0)
 <template>
   <!-- Root -->
   <div id="app-root">
+
+    <!-- Fond parallax brutaliste global (position: fixed, z-index: 0) -->
+    <PageBackground />
 
     <!-- Barre de progression (au-dessus de tout, z-index nav+1) -->
     <ScrollProgress :scroll-pct="scrollPct" />

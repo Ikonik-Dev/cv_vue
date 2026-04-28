@@ -101,7 +101,7 @@ useReveal(gridRef)
 </template>
 
 <style scoped>
-.projects { background-color: var(--color-bg); }
+.projects { background-color: color-mix(in srgb, var(--color-bg) 88%, transparent); }
 
 /* ── Grille ─────────────────────────────────────────────── */
 .projects__grid {
