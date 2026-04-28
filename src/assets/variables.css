@@ -1,0 +1,70 @@
+/* ═══════════════════════════════════════════════════════════════
+   src/assets/variables.css — DESIGN TOKENS CSS (variables globales)
+   ═══════════════════════════════════════════════════════════════
+
+   Ce fichier est importé en PREMIER dans src/main.js.
+   Il définit toutes les variables CSS sur :root → disponibles
+   partout : fichiers globaux, composants scoped, inline styles.
+
+   ─── COMMENT PERSONNALISER ───────────────────────────────────
+   Modifiez UNE variable ici → propagation automatique dans
+   tout le design (couleurs, tailles, ombres, etc.)
+   ════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ─── Couleurs de base ──────────────────────────────────── */
+  --color-bg: #090909; /* Fond global (noir profond)          */
+  --color-fg: #f0ece0; /* Texte principal (blanc cassé crème) */
+  --color-surface: #111111; /* Surface des cartes                  */
+  --color-border: #f0ece0; /* Bordures (même valeur que --color-fg) */
+
+  /* ─── Accents néon — changez ces 3 couleurs pour re-themer ─ */
+  --color-accent-1: #00ffe7; /* Cyan néon    (primary)   */
+  --color-accent-2: #ff2d78; /* Hot pink     (secondary) */
+  --color-accent-3: #b8ff35; /* Lime vert    (tertiary)  */
+
+  /* ─── Typographie ──────────────────────────────────────── */
+  --font-display: "Space Grotesk", "Arial Black", sans-serif;
+  --font-body: "Space Grotesk", "Arial", sans-serif;
+  --font-mono: "IBM Plex Mono", "Courier New", monospace;
+
+  /* ─── Échelle de taille ─────────────────────────────────── */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --text-3xl: 3rem;
+  --text-4xl: 4.5rem;
+  /* Taille du nom hero : fluide entre 4rem et 11rem */
+  --text-hero: clamp(4rem, 13vw, 11rem);
+
+  /* ─── Espacements ───────────────────────────────────────── */
+  --spacing-xs: 0.5rem;
+  --spacing-sm: 1rem;
+  --spacing-md: 2rem;
+  --spacing-lg: 4rem;
+  --spacing-xl: 7rem;
+  --spacing-2xl: 11rem;
+
+  /* ─── Brutalisme ────────────────────────────────────────── */
+  --radius-brutal: 0px; /* Pas d'arrondi  */
+  --border-thick: 3px solid var(--color-border); /* Bordure épaisse */
+  --border-accent: 3px solid var(--color-accent-1); /* Bordure cyan    */
+  /* Ombres décalées sans flou (signature brutaliste) */
+  --shadow-brutal: 6px 6px 0px var(--color-accent-1);
+  --shadow-brutal-2: 6px 6px 0px var(--color-accent-2);
+  --shadow-brutal-3: 6px 6px 0px var(--color-accent-3);
+
+  /* ─── Transitions ───────────────────────────────────────── */
+  --transition-fast: 150ms ease;
+  --transition-normal: 280ms ease;
+  --transition-slow: 600ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ─── Z-index layers ────────────────────────────────────── */
+  --z-parallax: 0;
+  --z-content: 2;
+  --z-nav: 100;
+  --z-progress: 200;
+}
