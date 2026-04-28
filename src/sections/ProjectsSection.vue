@@ -6,10 +6,12 @@
  * - Effet hover brutaliste (shadow offset)
  * - 2 calques parallax décoratifs
  * - useReveal sur la grille
+ * - Click sur carte → transition zoom vers WorldView (Phase 1)
  */
 import { ref }       from 'vue'
 import ParallaxLayer from '@/components/ParallaxLayer.vue'
 import { useReveal } from '@/composables/useReveal.js'
+import { triggerProjectEnter } from '@/composables/useProjectTransition.js'
 
 // ── Props ──────────────────────────────────────────────────────
 const props = defineProps({
@@ -23,6 +25,14 @@ const props = defineProps({
 // ── Reveal ────────────────────────────────────────────────────
 const gridRef = ref(null)
 useReveal(gridRef)
+
+// ── Transition vers World ─────────────────────────────────────
+function handleProjectClick(project, index, event) {
+  // Empêche la navigation native des liens enfants
+  event.preventDefault()
+  const card = event.currentTarget
+  triggerProjectEnter(project, index, card.getBoundingClientRect())
+}
 </script>
 
 <template>
@@ -44,9 +54,15 @@ useReveal(gridRef)
       <!-- Grille de projets -->
       <div ref="gridRef" class="projects__grid reveal">
         <article
-          v-for="project in projects"
+          v-for="(project, index) in projects"
           :key="project.title"
           class="projects__card"
+          role="button"
+          tabindex="0"
+          :aria-label="`Ouvrir le projet ${project.title} en vue 3D`"
+          @click="handleProjectClick(project, index, $event)"
+          @keydown.enter.prevent="handleProjectClick(project, index, $event)"
+          @keydown.space.prevent="handleProjectClick(project, index, $event)"
         >
 
           <!-- Numéro de projet (décoratif) -->
@@ -122,10 +138,15 @@ useReveal(gridRef)
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
   position:   relative;
   overflow:   hidden;
+  cursor:     pointer;
 }
 .projects__card:hover {
   transform:  translate(-5px, -5px);
   box-shadow: 11px 11px 0px var(--color-accent-2);
+}
+.projects__card:focus-visible {
+  outline:        2px solid var(--color-accent-1);
+  outline-offset: 3px;
 }
 
 /* ── Numéro décoratif ───────────────────────────────────── */

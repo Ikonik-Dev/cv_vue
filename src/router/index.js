@@ -9,6 +9,7 @@ import { createRouter, createWebHashHistory } from "vue-router";
 // Import différé (lazy) : HomeView est chargé uniquement quand la route est activée
 // Vite code-split automatiquement les imports dynamiques en chunks séparés
 const HomeView = () => import("@/views/HomeView.vue");
+const WorldView = () => import("@/views/WorldView.vue");
 
 /** @type {import('vue-router').RouteRecordRaw[]} */
 const routes = [
@@ -16,6 +17,12 @@ const routes = [
     path: "/",
     name: "home",
     component: HomeView,
+  },
+  {
+    // Scène monde 3D — accessible via transition depuis les cartes projet
+    path: "/world",
+    name: "world",
+    component: WorldView,
   },
   {
     // Catch-all : toute route non définie redirige vers /
