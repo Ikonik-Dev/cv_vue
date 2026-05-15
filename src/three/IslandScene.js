@@ -18,31 +18,31 @@ import gsap from "gsap";
 const ACCENT_HEX = [0x00ffe7, 0xff2d78, 0xb8ff35];
 
 // Échelles des îlots — tailles variées pour un rendu plus naturel
-const ISLAND_SCALES = [1.0, 0.75, 1.25];
+const ISLAND_SCALES = [4.0, 0.75, 1.25];
 
-// Positions des îlots — disposition éparse dans le plan XZ
-// y = 0.6 * scale (base du socle posée exactement sur le plan)
+// Positions des îlots — disposition éparse dans le plan XZ (océan 220×220, ±110)
+// y = 0.6 × scale — base du socle posée exactement au niveau de l'eau
 const ISLAND_POSITIONS = [
-  new THREE.Vector3(-20, 0.6, -6), // Île 0 — gauche, légèrement en retrait
-  new THREE.Vector3(5, 0.45, 12), // Île 1 — centre-droit, proche (petite)
-  new THREE.Vector3(22, 0.75, -5), // Île 2 — droite, légèrement en retrait (grande)
+  new THREE.Vector3(-65, 2.4,  -30), // Île 0 — loin à gauche  (scale 4.0, géante)
+  new THREE.Vector3( 62, 0.45,  55), // Île 1 — loin à droite  (scale 0.75, petite)
+  new THREE.Vector3( 30, 0.75, -70), // Île 2 — centre arrière (scale 1.25, moyenne)
 ];
 
-// Positions caméra par îlot (focused) — adaptées aux positions et tailles
+// Positions caméra par îlot — adaptées aux nouvelles positions et tailles
 const CAMERA_SLOTS = [
-  {
-    pos: new THREE.Vector3(-17, 10, 14),
-    target: new THREE.Vector3(-20, 3, -6),
-  },
-  { pos: new THREE.Vector3(8, 8, 28), target: new THREE.Vector3(5, 2, 12) },
-  { pos: new THREE.Vector3(20, 12, 10), target: new THREE.Vector3(22, 4, -5) },
+  { pos: new THREE.Vector3(-35, 55, 15),  target: new THREE.Vector3(-65, 20, -30) }, // île géante
+  { pos: new THREE.Vector3( 68, 10, 85),  target: new THREE.Vector3( 62,  2,  55) }, // petite île
+  { pos: new THREE.Vector3( 45, 20, -38), target: new THREE.Vector3( 30,  5, -70) }, // île moyenne
 ];
 
-// Position caméra vue d'ensemble — centrée sur la disposition aléatoire
+// Position caméra vue d'ensemble — recule pour couvrir la disposition élargie
 const OVERVIEW = {
-  pos: new THREE.Vector3(2, 38, 62),
-  target: new THREE.Vector3(2, 0, 1),
+  pos:    new THREE.Vector3(10, 95, 130),
+  target: new THREE.Vector3( 8,  0, -15),
 };
+
+// Zone d'exclusion du continent (pour _isXZSafe — évite que le sous-marin le traverse)
+const CONTINENT_POS = { x: 88, z: 8, minDist: 52 };
 
 // ─── Paramètres du bateau ─────────────────────────────────────────
 const BOAT = {
@@ -62,36 +62,38 @@ const BOAT = {
  * La géométrie source est immédiatement disposée (plus besoin après).
  */
 function wf(geo, color, opacity = 1) {
-  const wGeo = new THREE.WireframeGeometry(geo);
-  geo.dispose();
-  const mat = new THREE.LineBasicMaterial({
+  const mat = new THREE.MeshLambertMaterial({
     color,
     transparent: opacity < 1,
     opacity,
-    depthWrite: false,
   });
-  return new THREE.LineSegments(wGeo, mat);
+  return new THREE.Mesh(geo, mat);
 }
 
 // ─── Constructeur d'île ───────────────────────────────────────────
 /**
- * Retourne un THREE.Group représentant une île cyberpunk wireframe.
- * @param {number} color  — couleur hex 0xRRGGBB
+ * Retourne un THREE.Group représentant une île avec palette naturelle.
+ * @param {number} accentColor — hex 0xRRGGBB — beacon & anneau orbital uniquement
  * @returns {{ group: THREE.Group, hitMeshes: THREE.Mesh[] }}
  */
-function buildIsland(color) {
+function buildIsland(accentColor) {
   const group = new THREE.Group();
   const hitMeshes = [];
 
-  // ── Socle hexagonal (large prisme aplati) ─────────────────────
-  group.add(wf(new THREE.CylinderGeometry(5.2, 6.8, 1.2, 6), color));
+  // Palette naturelle : roche → végétation → neige
+  const EARTH = 0x5a3e2b; // socle : roche brun foncé
+  const GRASS = 0x2f6b22; // flancs : végétation dense
+  const SNOW = 0xe8f4fb; // sommet : neige/glace légèrement bleutée
 
-  // ── Pic montagneux (cône hexagonal) ──────────────────────────
-  const peak = wf(new THREE.ConeGeometry(3, 5.5, 6), color);
+  // ── Socle hexagonal (large prisme aplati) — roche/terre ───────
+  group.add(wf(new THREE.CylinderGeometry(5.2, 6.8, 1.2, 6), EARTH));
+
+  // ── Pic montagneux (cône hexagonal) — enneigé ────────────────
+  const peak = wf(new THREE.ConeGeometry(3, 5.5, 6), SNOW);
   peak.position.y = 3.35;
   group.add(peak);
 
-  // ── Structures (bâtiments / serveurs) ────────────────────────
+  // ── Structures (végétation / constructions envahies de mousse) ─
   const buildings = [
     { geo: new THREE.BoxGeometry(0.7, 2.8, 0.7), pos: [2.6, 2.0, 0.8] },
     { geo: new THREE.BoxGeometry(0.5, 1.8, 0.5), pos: [-2.2, 1.5, 1.6] },
@@ -99,15 +101,15 @@ function buildIsland(color) {
     { geo: new THREE.BoxGeometry(0.4, 1.2, 0.4), pos: [-1.0, 1.2, 2.2] },
   ];
   buildings.forEach(({ geo, pos }) => {
-    const b = wf(geo, color, 0.75);
+    const b = wf(geo, GRASS, 0.9);
     b.position.set(...pos);
     group.add(b);
   });
 
-  // ── Balise verticale (beacon) ──────────────────────────────────
+  // ── Balise verticale (beacon) — rappel couleur accent du site ──
   const beaconGeo = new THREE.CylinderGeometry(0.05, 0.05, 12, 4);
   const beaconMat = new THREE.MeshBasicMaterial({
-    color,
+    color: accentColor,
     transparent: true,
     opacity: 0.12,
   });
@@ -115,10 +117,10 @@ function buildIsland(color) {
   beacon.position.y = 8.6;
   group.add(beacon);
 
-  // ── Anneau orbital (torus) ─────────────────────────────────────
+  // ── Anneau orbital (torus) — rappel couleur accent du site ────
   const ringGeo = new THREE.TorusGeometry(7.5, 0.03, 4, 48);
   const ringMat = new THREE.LineBasicMaterial({
-    color,
+    color: accentColor,
     transparent: true,
     opacity: 0.18,
   });
@@ -144,57 +146,87 @@ function buildIsland(color) {
   return { group, hitMeshes };
 }
 
-// ─── Bateau à moteur ──────────────────────────────────────────────
-// Couleurs : gradient ScrollProgress (cyan → rose → lime)
+// ─── Sous-marin ───────────────────────────────────────────────────
+// Remplace l'ancien bateau à moteur (Phase 4 → aspect uniquement).
+// Comportement (IA waypoints, contrôle clavier, hitMesh, sillage) inchangé.
+// Structure : corps cylindrique horizontal + nez hémisphérique + queue conique
+//             + kiosque (conning tower) + périscope + ailerons × 2 + gouvernail en croix.
+// Couleurs du design system : cyan (#00ffe7) corps, rose (#ff2d78) détails,
+//                              lime (#b8ff35) périscope.
+// Axe de déplacement : +Z = avant (bow), -Z = arrière (stern).
 function buildBoat() {
   const group = new THREE.Group();
 
-  // ── Coque (hull) — cyan ───────────────────────────────────────
-  const hull = wf(new THREE.BoxGeometry(2.4, 0.7, 5.5), 0x00ffe7);
-  hull.position.y = 0.35;
-  group.add(hull);
+  // ── Corps principal (cylindre horizontal) — cyan ──────────────
+  // CylinderGeometry aligné sur Y par défaut → rotation.x = π/2 pour l'axe Z.
+  // 12 segments radiaux : silhouette ronde sans surcoût vertex.
+  const body = wf(new THREE.CylinderGeometry(0.85, 0.85, 5.6, 12), 0x00ffe7);
+  body.rotation.x = Math.PI / 2;
+  body.position.y = 0.1; // légèrement au-dessus de l'eau (y=0)
+  group.add(body);
 
-  // ── Étrave (bow) — cône pointé vers +Z ───────────────────────
-  const bow = wf(new THREE.ConeGeometry(0.9, 1.8, 4), 0x00ffe7);
-  bow.position.set(0, 0.35, 3.65);
-  bow.rotation.x = Math.PI / 2;
-  group.add(bow);
+  // ── Nez hémisphérique (avant +Z) ─────────────────────────────
+  // scale.z = 0.7 : aplatit la sphère pour un profil en ogive.
+  const nose = wf(new THREE.SphereGeometry(0.85, 10, 7), 0x00ffe7);
+  nose.scale.z = 0.7;
+  nose.position.set(0, 0.1, 2.8); // centré sur le bout avant du corps
+  group.add(nose);
 
-  // ── Poupe (stern) ─────────────────────────────────────────────
-  const stern = wf(new THREE.CylinderGeometry(0, 1.2, 0.7, 4), 0x00ffe7, 0.5);
-  stern.position.set(0, 0.35, -2.75);
-  group.add(stern);
+  // ── Queue conique (arrière -Z) ────────────────────────────────
+  // ConeGeometry pointe vers +Y → rotation.x = π/2 pour pointer vers -Z.
+  const tail = wf(new THREE.ConeGeometry(0.85, 2.0, 12), 0x00ffe7);
+  tail.rotation.x = Math.PI / 2;
+  tail.position.set(0, 0.1, -3.8); // joint sur le bout arrière du corps
+  group.add(tail);
 
-  // ── Cabine — rose ─────────────────────────────────────────────
-  const cabin = wf(new THREE.BoxGeometry(1.6, 0.9, 1.8), 0xff2d78);
-  cabin.position.set(0, 1.15, 0.3);
-  group.add(cabin);
+  // ── Kiosque (conning tower) — rose ───────────────────────────
+  // Tour rectangulaire dorsale, typique des sous-marins classiques.
+  const kiosk = wf(new THREE.BoxGeometry(0.85, 0.9, 1.6), 0xff2d78);
+  kiosk.position.set(0, 1.2, 0.4); // centré sur le milieu-avant du corps
+  group.add(kiosk);
 
-  // ── Tuyaux d'échappement — rose ×2 ───────────────────────────
-  [-0.7, 0.7].forEach((x) => {
-    const exhaust = wf(
-      new THREE.CylinderGeometry(0.12, 0.12, 0.7, 4),
-      0xff2d78,
-      0.7,
-    );
-    exhaust.position.set(x, 1.65, -0.5);
-    group.add(exhaust);
+  // ── Périscope — lime ──────────────────────────────────────────
+  // Tube fin + petite tête horizontale (occulaire). Décalé de 0.2 sur X
+  // pour ne pas chevaucher l'axe de symétrie du kiosque.
+  const peri = wf(new THREE.CylinderGeometry(0.07, 0.07, 1.9, 5), 0xb8ff35);
+  peri.position.set(0.2, 2.35, 0.4);
+  group.add(peri);
+  const periTop = wf(new THREE.BoxGeometry(0.22, 0.14, 0.38), 0xb8ff35);
+  periTop.position.set(0.2, 3.25, 0.4); // sommet du tube
+  group.add(periTop);
+
+  // ── Ailerons latéraux (bow planes / stabilisateurs) ×2 — rose ─
+  // Ailettes plates symétriques sur les flancs, à mi-corps côté avant.
+  // Servent de stabilisateurs de plongée sur un vrai sous-marin.
+  [-1, 1].forEach((side) => {
+    const fin = wf(new THREE.BoxGeometry(1.2, 0.1, 0.65), 0xff2d78, 0.8);
+    fin.position.set(side * 1.15, 0.1, 1.0); // ±X, au niveau de la ligne de flottaison
+    group.add(fin);
   });
 
-  // ── Mât — lime ────────────────────────────────────────────────
-  const mast = wf(new THREE.CylinderGeometry(0.06, 0.06, 2.8, 4), 0xb8ff35);
-  mast.position.set(0, 2.2, 0.8);
-  group.add(mast);
+  // ── Gouvernail arrière en croix — rose ────────────────────────
+  // Deux ailettes perpendiculaires (une verticale, une horizontale) à la poupe.
+  // La croix est caractéristique des sous-marins militaires classiques.
+  const rudV = wf(new THREE.BoxGeometry(0.1, 1.0, 0.65), 0xff2d78, 0.8); // ailette verticale
+  rudV.position.set(0, 0.7, -3.3);
+  group.add(rudV);
+  const rudH = wf(new THREE.BoxGeometry(1.4, 0.1, 0.65), 0xff2d78, 0.8); // ailette horizontale
+  rudH.position.set(0, 0.1, -3.3);
+  group.add(rudH);
 
-  // ── Sillage en V (2 branches, BufferGeometry dynamique) ───────
+  // ── Sillage de bulles (traîne discrète) ───────────────────────
+  // Même logique que l'ancien sillage en V du bateau, mais élargissement
+  // réduit (2.2 vs 3.5) pour simuler une traîne sous-marine plus resserrée.
+  // BufferAttribute DynamicDrawUsage : vertices mis à jour en temps réel
+  // par _updateBoat() pour donner l'impression de mouvement.
   const N_WAKE = 10;
   const wakeGroup = new THREE.Group();
-  wakeGroup.userData.isWake = true;
+  wakeGroup.userData.isWake = true; // tag repéré par _updateBoat pour l'animer
   [-1, 1].forEach((side) => {
     const pts = new Float32Array(N_WAKE * 3);
     for (let i = 0; i < N_WAKE; i++) {
       const frac = i / (N_WAKE - 1);
-      pts[i * 3] = side * frac * 3.5; // élargissement latéral
+      pts[i * 3] = side * frac * 2.2; // élargissement latéral réduit
       pts[i * 3 + 1] = 0;
       pts[i * 3 + 2] = -2.5 - frac * 5.5; // extension vers -Z (arrière)
     }
@@ -208,15 +240,17 @@ function buildBoat() {
         new THREE.LineBasicMaterial({
           color: 0x00ffe7,
           transparent: true,
-          opacity: 0.35,
+          opacity: 0.2, // plus discret que le bateau (0.35) — sous l'eau
         }),
       ),
     );
   });
-  wakeGroup.position.y = -0.3;
+  wakeGroup.position.y = -0.3; // légèrement sous la surface
   group.add(wakeGroup);
 
   // ── Zone de clic (sphère invisible) ───────────────────────────
+  // Rayon 3.5 : capte les clics/hover sur tout le sous-marin quelle que
+  // soit la caméra. userData.isBoatHit détecté par _handleClick/_handleMove.
   const hitGeo = new THREE.SphereGeometry(3.5, 6, 4);
   const hitMat = new THREE.MeshBasicMaterial({ visible: false });
   const hitMesh = new THREE.Mesh(hitGeo, hitMat);
@@ -227,45 +261,31 @@ function buildBoat() {
   return { group, hitMesh };
 }
 
-// ─── Plan océan ───────────────────────────────────────────────────
+// ─── Océan animé ──────────────────────────────────────────────────
+// Mesh 32×32 (1 089 vertices) — 2 sinusoïdes croisées mises à jour chaque frame.
+// MeshPhongMaterial : specular cyan pour le reflet du « soleil ».
+// Pas de wireframe, pas de scanner — léger et lisible.
 function buildOcean() {
   const container = new THREE.Group();
-  container.position.y = -0.6; // juste sous la base du socle
+  container.position.y = -0.6;
 
-  // Grille de fond (très transparent)
-  const gridGeo = new THREE.PlaneGeometry(180, 180, 36, 36);
-  const grid = new THREE.LineSegments(
-    new THREE.WireframeGeometry(gridGeo),
-    new THREE.LineBasicMaterial({
-      color: 0x00ffe7,
-      transparent: true,
-      opacity: 0.035,
-    }),
-  );
-  gridGeo.dispose();
-  grid.rotation.x = -Math.PI / 2;
-  container.add(grid);
+  const seaGeo = new THREE.PlaneGeometry(220, 220, 32, 32);
+  // DynamicDrawUsage : indique à WebGL que le buffer sera réécrit souvent
+  seaGeo.attributes.position.setUsage(THREE.DynamicDrawUsage);
 
-  // Ligne scanner avec ondulations (BufferGeometry dynamique, 90 segments)
-  const N_SCAN = 90;
-  const scanPositions = new Float32Array(N_SCAN * 3);
-  for (let j = 0; j < N_SCAN; j++) {
-    scanPositions[j * 3] = (j / (N_SCAN - 1) - 0.5) * 180; // x : -90 → +90
-    scanPositions[j * 3 + 1] = 0;
-    scanPositions[j * 3 + 2] = 0;
-  }
-  const scanGeo = new THREE.BufferGeometry();
-  const scanAttr = new THREE.BufferAttribute(scanPositions, 3);
-  scanAttr.setUsage(THREE.DynamicDrawUsage);
-  scanGeo.setAttribute("position", scanAttr);
-  const scanMat = new THREE.LineBasicMaterial({
-    color: 0x00ffe7,
+  const seaMat = new THREE.MeshPhongMaterial({
+    color: 0x0a4a6e, // bleu-cyan moyen
+    specular: 0x00ffe7, // reflet cyan
+    shininess: 90,
     transparent: true,
-    opacity: 0.4,
+    opacity: 0.88,
+    side: THREE.FrontSide,
   });
-  const scanner = new THREE.Line(scanGeo, scanMat);
-  scanner.userData.isScanner = true;
-  container.add(scanner);
+
+  const sea = new THREE.Mesh(seaGeo, seaMat);
+  sea.rotation.x = -Math.PI / 2;
+  sea.userData.isWave = true;
+  container.add(sea);
 
   return container;
 }
@@ -290,6 +310,189 @@ function buildParticles() {
       opacity: 0.22,
     }),
   );
+}
+// ─── Ciel étoilé + Aurore boréale ────────────────────────────────
+// 5 couches : 2 couches d'étoiles (demi-sphère) + 3 anneaux d'aurore.
+// Aurore : gradient cyan → lime → rose, identique au gradient ScrollProgress.
+// fog:false + sizeAttenuation:false sur toutes les couches.
+function buildStarfield() {
+  const group = new THREE.Group();
+
+  // ── Couche 0 : étoiles fines (demi-sphère) ────────────────────
+  const N1 = 2400;
+  const p1 = new Float32Array(N1 * 3);
+  for (let i = 0; i < N1; i++) {
+    const phi = Math.acos(2 * Math.random() - 1);
+    const theta = Math.random() * Math.PI * 2;
+    const r = 160 + Math.random() * 40;
+    p1[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+    p1[i * 3 + 1] = Math.abs(r * Math.cos(phi)) + 5;
+    p1[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+  }
+  const g1 = new THREE.BufferGeometry();
+  g1.setAttribute("position", new THREE.BufferAttribute(p1, 3));
+  group.add(
+    new THREE.Points(
+      g1,
+      new THREE.PointsMaterial({
+        color: 0xddeeff,
+        size: 1.0,
+        fog: false,
+        transparent: true,
+        opacity: 0.75,
+        sizeAttenuation: false,
+      }),
+    ),
+  );
+
+  // ── Couche 1 : étoiles brillantes (demi-sphère) ───────────────
+  const N2 = 180;
+  const p2 = new Float32Array(N2 * 3);
+  for (let i = 0; i < N2; i++) {
+    const phi = Math.acos(2 * Math.random() - 1);
+    const theta = Math.random() * Math.PI * 2;
+    const r = 155;
+    p2[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+    p2[i * 3 + 1] = Math.abs(r * Math.cos(phi)) + 5;
+    p2[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+  }
+  const g2 = new THREE.BufferGeometry();
+  g2.setAttribute("position", new THREE.BufferAttribute(p2, 3));
+  group.add(
+    new THREE.Points(
+      g2,
+      new THREE.PointsMaterial({
+        color: 0xffffff,
+        size: 2.2,
+        fog: false,
+        transparent: true,
+        opacity: 1.0,
+        sizeAttenuation: false,
+      }),
+    ),
+  );
+
+  // ── Générateur d'anneau d'aurore ──────────────────────────────
+  // Distribue `count` particules en anneau horizontal autour de Y=baseY.
+  // spreadY : dispersion gaussienne approchée (somme de 3 randoms).
+  // r = 150-180 u. → hors portée du brouillard (fog:false de toute façon).
+  function auroraRing(count, baseY, spreadY, color, opacity, size) {
+    const pts = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const r = 150 + Math.random() * 30;
+      const yOff =
+        (Math.random() + Math.random() + Math.random() - 1.5) * spreadY;
+      pts[i * 3] = r * Math.cos(theta);
+      pts[i * 3 + 1] = Math.max(2, baseY + yOff);
+      pts[i * 3 + 2] = r * Math.sin(theta);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(pts, 3));
+    return new THREE.Points(
+      geo,
+      new THREE.PointsMaterial({
+        color,
+        size,
+        fog: false,
+        transparent: true,
+        opacity,
+        sizeAttenuation: false,
+      }),
+    );
+  }
+
+  // ── Couche 2 : aurore cyan — basse (horizon) ──────────────────
+  group.add(auroraRing(900, 15, 8, 0x00ffe7, 0.38, 1.2));
+  // ── Couche 3 : aurore lime — médiane ──────────────────────────
+  group.add(auroraRing(700, 32, 12, 0xb8ff35, 0.32, 0.9));
+  // ── Couche 4 : aurore rose — haute ────────────────────────────
+  group.add(auroraRing(400, 55, 18, 0xff2d78, 0.2, 0.8));
+
+  return group;
+}
+
+// ─── Dôme de ciel — gradient aurora ──────────────────────────────
+// Sphère inversée (BackSide) de rayon 185 avec vertex colors :
+// horizon → rose-aurora profond (#b8102e) · ciel moyen → violet sombre (#18062a)
+// zénith → noir-violet (#030108). depthWrite:false + renderOrder:-1
+// pour qu'il soit toujours dessiné derrière tout le reste.
+function buildSkyDome() {
+  const R = 185;
+  const geo = new THREE.SphereGeometry(R, 36, 18);
+  const posAttr = geo.attributes.position;
+  const cols = new Float32Array(posAttr.count * 3);
+
+  const cHor = new THREE.Color(0xb8102e); // rose-aurora horizon
+  const cMid = new THREE.Color(0x18062a); // violet sombre — ciel moyen
+  const cTop = new THREE.Color(0x030108); // quasi-noir violet — zénith
+
+  for (let i = 0; i < posAttr.count; i++) {
+    // t=0 à l'équateur, t=1 au zénith (valeurs négatives ignorées = sous l'horizon)
+    const t = Math.max(0, Math.min(1, posAttr.getY(i) / R));
+    const c =
+      t > 0.3
+        ? cMid.clone().lerp(cTop, (t - 0.3) / 0.7) // ciel moyen → zénith
+        : cHor.clone().lerp(cMid, t / 0.3); // horizon → ciel moyen
+    cols[i * 3] = c.r;
+    cols[i * 3 + 1] = c.g;
+    cols[i * 3 + 2] = c.b;
+  }
+  geo.setAttribute("color", new THREE.BufferAttribute(cols, 3));
+
+  return new THREE.Mesh(
+    geo,
+    new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      side: THREE.BackSide,
+      fog: false,
+      depthWrite: false,
+    }),
+  );
+}
+
+// ─── Continent d'horizon ──────────────────────────────────────────
+// Grand relief d'arrière-plan positionné sur le bord droit du plan d'eau.
+// Constitué de plusieurs volumes empilés pour simuler une côte montageuse
+// sans wireframe — masse sombre qui ancre l'horizon.
+function buildContinent() {
+  const group = new THREE.Group();
+
+  const ROCK  = 0x3a2e24; // roche sombre
+  const EARTH = 0x4a3a2a; // terre/falaise
+  const SNOW  = 0xd8eaf4; // neiges éternelles
+
+  // Base — large plateau côtier (prisme hexagonal aplati)
+  const base = wf(new THREE.CylinderGeometry(38, 46, 5, 7), EARTH);
+  base.position.y = 2.5;
+  group.add(base);
+
+  // Relief principal — grande montagne centrale
+  const peak1 = wf(new THREE.ConeGeometry(22, 42, 8), ROCK);
+  peak1.position.y = 26;
+  group.add(peak1);
+
+  // Sommet enneigé
+  const cap1 = wf(new THREE.ConeGeometry(10, 18, 8), SNOW);
+  cap1.position.y = 52;
+  group.add(cap1);
+
+  // Pic secondaire gauche
+  const peak2 = wf(new THREE.ConeGeometry(12, 26, 7), ROCK);
+  peak2.position.set(-22, 18, 8);
+  group.add(peak2);
+
+  // Pic secondaire droit (plus petit)
+  const peak3 = wf(new THREE.ConeGeometry(9, 20, 6), ROCK);
+  peak3.position.set(18, 15, -12);
+  group.add(peak3);
+
+  // Talus avant — doux prolongement vers l'océan
+  const slope = wf(new THREE.ConeGeometry(28, 10, 7), EARTH, 0.7);
+  slope.position.set(10, 5, 20);
+  group.add(slope);
+
+  return group;
 }
 
 // ─── Classe principale ────────────────────────────────────────────
@@ -346,14 +549,15 @@ export class IslandScene {
       alpha: false,
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.setClearColor(0x070707, 1);
+    this.renderer.setClearColor(0x030108, 1); // correspond au zénith du dôme
     this._resize();
   }
 
   // ── Scène ────────────────────────────────────────────────────────
   _initScene() {
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.FogExp2(0x070707, 0.01);
+    // Fog légèrement violet-sombre — correspond au ciel moyen du dôme
+    this.scene.fog = new THREE.FogExp2(0x0d0520, 0.008);
   }
 
   // ── Caméra ───────────────────────────────────────────────────────
@@ -367,15 +571,26 @@ export class IslandScene {
 
   // ── Construction du monde ─────────────────────────────────────────
   _buildWorld() {
-    // Océan
+    // Dôme de ciel aurora — rendu en premier (renderOrder -1, depthWrite:false)
+    const skyDome = buildSkyDome();
+    skyDome.renderOrder = -1;
+    this.scene.add(skyDome);
+
+    // Océan animé
     this._ocean = buildOcean();
+    this._sea = this._ocean.children.find((c) => c.userData.isWave) ?? null;
     this.scene.add(this._ocean);
 
     // Particules
-    this._particles = buildParticles();
+    this._particles = buildStarfield();
     this.scene.add(this._particles);
 
-    // Îlots — tailles variées (ISLAND_SCALES) + positions aléatoires
+    // Continent — grand relief d'horizon, bord droit du plan d'eau
+    const continent = buildContinent();
+    continent.position.set(CONTINENT_POS.x, 0, CONTINENT_POS.z);
+    this.scene.add(continent);
+
+    // Îlots — tailles variées (ISLAND_SCALES) + positions étalées
     this._islandGroups = ISLAND_POSITIONS.map((pos, i) => {
       const { group, hitMeshes } = buildIsland(ACCENT_HEX[i]);
       group.scale.setScalar(ISLAND_SCALES[i]);
@@ -385,16 +600,13 @@ export class IslandScene {
       return group;
     });
 
-    // Lumières ponctuelles — intensité et portée proportionnelles à la taille
-    ISLAND_POSITIONS.forEach((pos, i) => {
-      const s = ISLAND_SCALES[i];
-      const light = new THREE.PointLight(ACCENT_HEX[i], 1.2 * s, 28 * s);
-      light.position.set(pos.x, pos.y + 6, pos.z);
-      this.scene.add(light);
-    });
+    // Lumière directionnelle unique — angle 60° (soleil latéral)
+    const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+    sun.position.set(30, 52, 20);
+    this.scene.add(sun);
 
-    // Lumière ambiante très sombre
-    this.scene.add(new THREE.AmbientLight(0x111111, 0.6));
+    // Lumière ambiante — assez chaude pour éclairer les faces non exposées
+    this.scene.add(new THREE.AmbientLight(0x445566, 1.4));
 
     // Bateau à moteur
     this._spawnBoat();
@@ -535,6 +747,7 @@ export class IslandScene {
 
   _isXZSafe(x, z) {
     if (Math.abs(x) > 78 || Math.abs(z) > 78) return false;
+    // Exclusion îlots
     for (let i = 0; i < ISLAND_POSITIONS.length; i++) {
       const ip = ISLAND_POSITIONS[i];
       const minDist = 7 * ISLAND_SCALES[i] + 12;
@@ -542,6 +755,10 @@ export class IslandScene {
       const dz = z - ip.z;
       if (dx * dx + dz * dz < minDist * minDist) return false;
     }
+    // Exclusion continent (évite que le sous-marin traverse le relief)
+    const cdx = x - CONTINENT_POS.x;
+    const cdz = z - CONTINENT_POS.z;
+    if (cdx * cdx + cdz * cdz < CONTINENT_POS.minDist * CONTINENT_POS.minDist) return false;
     return true;
   }
 
@@ -734,20 +951,36 @@ export class IslandScene {
 
     // Les îles sont fixes (posées sur le plan) — pas de flottaison ni rotation
 
-    // Scanner — fréquence ×1.5 + ondulations dynamiques sur les vertices
-    const scanner = this._ocean.children.find((c) => c.userData.isScanner);
-    if (scanner) {
-      scanner.position.z = ((t * 10.5) % 180) - 90;
-      const posAttr = scanner.geometry.attributes.position;
-      for (let i = 0; i < posAttr.count; i++) {
-        const x = posAttr.getX(i);
-        posAttr.setY(i, Math.sin(x * 0.12 + t * 2.8) * 0.4);
+    // Vagues de l'océan — 2 sinusoïdes croisées (amplitude modérée, fréq lente)
+    // En géométrie PlaneGeometry rotée -π/2, l'axe Z local = hauteur monde.
+    if (this._sea) {
+      const pos = this._sea.geometry.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        const gx = pos.getX(i);
+        const gz = pos.getY(i);
+        pos.setZ(
+          i,
+          Math.sin(gx * 0.11 + t * 1.2) * 0.85 +
+            Math.sin(gz * 0.08 + t * 1.55) * 0.65 +
+            Math.sin((gx + gz) * 0.06 + t * 0.9) * 0.35,
+        );
       }
-      posAttr.needsUpdate = true;
+      pos.needsUpdate = true;
+      this._sea.geometry.computeVertexNormals();
     }
 
-    // Drift des particules
-    this._particles.rotation.y = t * 0.015;
+    // Rotation lente du ciel (aurores tournent doucement)
+    this._particles.rotation.y = t * 0.008;
+    // Scintillement des 3 anneaux d'aurore — décalage de phase pour effet vivant
+    if (this._particles.children[2])
+      this._particles.children[2].material.opacity =
+        0.38 + Math.sin(t * 0.7) * 0.07; // cyan
+    if (this._particles.children[3])
+      this._particles.children[3].material.opacity =
+        0.32 + Math.sin(t * 0.9 + 1.0) * 0.06; // lime
+    if (this._particles.children[4])
+      this._particles.children[4].material.opacity =
+        0.2 + Math.sin(t * 0.6 + 2.1) * 0.05; // rose
 
     // Bateau — IA ou contrôle joueur
     this._updateBoat(t);

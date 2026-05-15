@@ -18,7 +18,7 @@ export const person = {
   email: "sullyvan@dupont.dev",
   label: "[ DISPONIBLE — PARIS, FRANCE — FULL REMOTE ]",
   bio: [
-    "Développeur PHP / Symfony Senior basé à Paris. Je conçois des architectures back-end solides, des API REST performantes et des applications métier complexes depuis <strong>2014</strong>. Passionné par les bonnes pratiques DDD, TDD et l'automatisation DevOps.",
+    "Développeur PHP / Symfony Senior basé à Paris. Je conçois des architectures back-end solides, des API REST performantes et des applications métier complexes depuis 2014. Passionné par les bonnes pratiques DDD, TDD et l'automatisation DevOps.",
     "Expert en montée en charge, refactoring de legacy et formation d'équipes. Contributeur actif à plusieurs bundles Symfony open source.",
   ],
 };

@@ -9,6 +9,8 @@ import vue from "@vitejs/plugin-vue";
 import { fileURLToPath, URL } from "node:url";
 
 export default defineConfig({
+  base: "/cv_vue/",
+
   plugins: [
     vue(), // Active la compilation des .vue (template → render fn, scoped styles)
   ],

@@ -10,7 +10,8 @@
  */
 import { ref } from "vue";
 import ParallaxLayer from "@/components/ParallaxLayer.vue";
-import { useReveal } from "@/composables/useReveal.js";
+import { useReveal }  from "@/composables/useReveal.js";
+import { useGlitch }  from "@/composables/useGlitch.js";
 
 // ── Props ──────────────────────────────────────────────────────
 const props = defineProps({
@@ -23,7 +24,9 @@ const props = defineProps({
 // ── Reveal ────────────────────────────────────────────────────
 const heroContent = ref(null);
 useReveal(heroContent);
-</script>
+// ── Glitch ────────────────────────────────────────────
+// heroContent contient les deux .glitch spans — useGlitch les trouve via querySelectorAll
+useGlitch(heroContent);</script>
 
 <template>
   <section id="hero" class="section hero">

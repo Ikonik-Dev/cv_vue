@@ -257,19 +257,32 @@ svg {
   text-transform: uppercase;
   line-height: 0.88;
   word-break: break-word;
-  opacity: 0.85;
+  /* Pas de transition : snap instantané = effet glitch authentique */
+  transition: none;
 }
 
 .glitch::before {
   color: var(--color-accent-1);
-  animation: glitch-1 5s infinite;
-  clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%);
+  opacity: var(--go1, 0);
+  transform: translate(var(--gx1, 0px), var(--gy1, 0px)) skewX(var(--gs1, 0deg));
+  clip-path: polygon(
+    0 var(--gt1, 0%),
+    100% var(--gt1, 0%),
+    100% var(--gb1, 35%),
+    0 var(--gb1, 35%)
+  );
 }
 
 .glitch::after {
   color: var(--color-accent-2);
-  animation: glitch-2 5s infinite;
-  clip-path: polygon(0 65%, 100% 65%, 100% 100%, 0 100%);
+  opacity: var(--go2, 0);
+  transform: translate(var(--gx2, 0px), var(--gy2, 0px)) skewX(var(--gs2, 0deg));
+  clip-path: polygon(
+    0 var(--gt2, 65%),
+    100% var(--gt2, 65%),
+    100% var(--gb2, 100%),
+    0 var(--gb2, 100%)
+  );
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -334,53 +347,7 @@ svg {
   }
 }
 
-/* Glitch couche 1 (cyan) */
-@keyframes glitch-1 {
-  0%,
-  89%,
-  100% {
-    transform: translate(0);
-    clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%);
-  }
-  91% {
-    transform: translate(-7px, 2px);
-    clip-path: polygon(0 15%, 100% 15%, 100% 48%, 0 48%);
-  }
-  93% {
-    transform: translate(7px, -2px);
-    clip-path: polygon(0 5%, 100% 5%, 100% 22%, 0 22%);
-  }
-  95% {
-    transform: translate(-4px, 1px);
-    clip-path: polygon(0 60%, 100% 60%, 100% 78%, 0 78%);
-  }
-  97% {
-    transform: translate(4px, -1px);
-    clip-path: polygon(0 40%, 100% 40%, 100% 55%, 0 55%);
-  }
-}
-
-/* Glitch couche 2 (hot pink) */
-@keyframes glitch-2 {
-  0%,
-  89%,
-  100% {
-    transform: translate(0);
-    clip-path: polygon(0 65%, 100% 65%, 100% 100%, 0 100%);
-  }
-  91% {
-    transform: translate(5px, -1px);
-    clip-path: polygon(0 50%, 100% 50%, 100% 68%, 0 68%);
-  }
-  93% {
-    transform: translate(-5px, 2px);
-    clip-path: polygon(0 75%, 100% 75%, 100% 88%, 0 88%);
-  }
-  95% {
-    transform: translate(3px, -2px);
-    clip-path: polygon(0 22%, 100% 22%, 100% 38%, 0 38%);
-  }
-}
+/* Glitch — piloté par useGlitch.js (CSS custom properties, sans @keyframes) */
 
 /* ─────────────────────────────────────────────────────────────
    RESPONSIVE
